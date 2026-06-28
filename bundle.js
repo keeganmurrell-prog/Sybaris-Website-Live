@@ -4242,9 +4242,11 @@ window.Ic = Ic;
     const dRef = useRef(null);
     const mRef = useRef(null);
     const vRef = useRef(null);
+    const textRef = useRef(null);
     useEffect(() => {
       const scroller = document.getElementById("kit-scroll") || window;
       const top = () => scroller === window ? window.scrollY : scroller.scrollTop;
+      const isMobile = () => window.matchMedia && window.matchMedia("(max-width:767px)").matches;
       const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const seekVideo = p => {
         const v = vRef.current;
@@ -4265,6 +4267,20 @@ window.Ic = Ic;
         if (mRef.current) mRef.current.style.backgroundSize = sizePct.toFixed(2) + "%";
         if (vRef.current) vRef.current.style.transform = `scale(${(sizePct / 100).toFixed(4)})`;
         seekVideo(p);
+        // Mobile only: once the image reveal is under way, fade/slide the text
+        // in smoothly (tied directly to scroll position, same as the clip-path
+        // above, so it never feels jumpy). Desktop text stays as-is — always
+        // fully visible, no reveal.
+        if (textRef.current) {
+          if (isMobile()) {
+            const textP = clamp((p - 0.35) / 0.45, 0, 1);
+            textRef.current.style.opacity = textP.toFixed(3);
+            textRef.current.style.transform = `translateY(${((1 - textP) * 18).toFixed(2)}px)`;
+          } else {
+            textRef.current.style.opacity = "1";
+            textRef.current.style.transform = "none";
+          }
+        }
       };
       if (reduce) {
         // No scroll-driven animation: show the image/video fully revealed, centred,
@@ -4272,6 +4288,10 @@ window.Ic = Ic;
         if (clipRef.current) clipRef.current.style.clipPath = "none";
         if (dRef.current) dRef.current.style.backgroundSize = "100%";
         if (mRef.current) mRef.current.style.backgroundSize = "100%";
+        if (textRef.current) {
+          textRef.current.style.opacity = "1";
+          textRef.current.style.transform = "none";
+        }
         if (vRef.current) {
           vRef.current.style.transform = "scale(1)";
           const settle = () => seekVideo(1);
@@ -4316,6 +4336,7 @@ window.Ic = Ic;
       willChange: "background-size"
     };
     // Initial (scroll = 0) window, so there's no unclipped flash before useEffect runs.
+    const isInitiallyMobile = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(max-width:767px)").matches;
     const i = initialClipPercentage;
     const f = finalClipPercentage;
     const initialClip = `polygon(${i}% ${i}%, ${f}% ${i}%, ${f}% ${f}%, ${i}% ${f}%)`;
@@ -4391,7 +4412,14 @@ window.Ic = Ic;
         justifyContent: "flex-end",
         padding: "0 var(--gutter) 72px"
       }
-    }, children)));
+    }, /*#__PURE__*/React.createElement("div", {
+      ref: textRef,
+      style: isInitiallyMobile ? {
+        opacity: 0,
+        transform: "translateY(18px)",
+        willChange: "opacity, transform"
+      } : undefined
+    }, children))));
   }
   window.SmoothScrollHero = SmoothScrollHero;
 
