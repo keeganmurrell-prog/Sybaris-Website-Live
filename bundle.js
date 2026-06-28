@@ -634,10 +634,13 @@ function ImageSlot({
   const key = id ? STORE_PREFIX + id : null;
   const editMode = useImageEditMode();
   const interactive = editable && editMode;
-  const [dataUrl, setDataUrl] = React.useState(null);
-  const [pos, setPos] = React.useState({
-    x: 50,
-    y: 50
+  // Read any saved override synchronously on first render (not in an effect)
+  // so the very first paint already shows it — otherwise the default `src`
+  // flashes for a frame before swapping to the saved photo.
+  const [dataUrl, setDataUrl] = React.useState(() => loadState(key).src);
+  const [pos, setPos] = React.useState(() => {
+    const st = loadState(key);
+    return { x: st.x, y: st.y };
   });
   const [over, setOver] = React.useState(false);
   const [hover, setHover] = React.useState(false);
@@ -3913,9 +3916,14 @@ window.SITE_CONTENT = {
   // ---------------------------------------------------------------------
   home: {
     hero: {
-      // Big scroll-reveal photo at the very top of the home page.
-      desktopImage: 'assets/gallery/hero-lounge.jpg',
-      mobileImage: 'assets/gallery/hero-lounge.jpg',
+      // Big scroll-reveal hero at the top of the home page. If "video" is set,
+      // it plays instead of the image below — scroll position scrubs the clip
+      // (currentTime), so the room's lights switch on as you scroll down.
+      // "desktopImage"/"mobileImage" stay as the poster frame + the fallback
+      // shown if video can't load.
+      video: 'assets/gallery/hero-lounge.mp4',
+      desktopImage: 'assets/gallery/hero-lounge-poster.jpg',
+      mobileImage: 'assets/gallery/hero-lounge-poster.jpg',
       overline: 'Bespoke Kitchens & Interiors',
       headingLine1: 'Made by hand,',
       headingLine2Italic: 'made to last.',
@@ -3983,7 +3991,12 @@ window.SITE_CONTENT = {
         { name: 'David Morewood', role: 'Director', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=700&q=80&auto=format&fit=crop' },
         { name: 'Jetsia Abrahams', role: 'Interior Designer', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=700&q=80&auto=format&fit=crop' },
         { name: 'Lyle Ownhouse', role: 'Draughtsman', photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=700&q=80&auto=format&fit=crop' },
-          { name: 'Lyle Ownhouse', role: 'Draughtsman', photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=700&q=80&auto=format&fit=crop' },
+        // 4 new placeholder slots — swap the name/role text and photo for each
+        // new hire (or edit live via ?edit, same as the slots above).
+        { name: 'Add Name', role: 'Add Role', photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=700&q=80&auto=format&fit=crop' },
+        { name: 'Add Name', role: 'Add Role', photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=700&q=80&auto=format&fit=crop' },
+        { name: 'Add Name', role: 'Add Role', photo: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=700&q=80&auto=format&fit=crop' },
+        { name: 'Add Name', role: 'Add Role', photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=700&q=80&auto=format&fit=crop' },
       ],
     },
     intro: {
@@ -4213,6 +4226,13 @@ window.Ic = Ic;
     scrollHeight = 700,
     desktopImage = "assets/gallery/thompson-01.jpg",
     mobileImage = "assets/gallery/thompson-01.jpg",
+    // Optional: a single video to scrub instead of the image above (e.g. a
+    // clip of lights switching on) — scroll position maps to currentTime, so
+    // the lights appear to switch on as the visitor scrolls. One element is
+    // used for every screen size (object-fit: cover crops it), which keeps
+    // mobile to a single decode/download instead of two.
+    video = null,
+    videoPoster = null,
     initialClipPercentage = 22,
     finalClipPercentage = 78,
     gradient = "linear-gradient(180deg, rgba(20,16,10,0.42) 0%, rgba(20,16,10,0.10) 36%, rgba(20,16,10,0.30) 78%, rgba(20,16,10,0.62) 100%)",
@@ -4221,10 +4241,17 @@ window.Ic = Ic;
     const clipRef = useRef(null);
     const dRef = useRef(null);
     const mRef = useRef(null);
+    const vRef = useRef(null);
     useEffect(() => {
       const scroller = document.getElementById("kit-scroll") || window;
       const top = () => scroller === window ? window.scrollY : scroller.scrollTop;
       const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const seekVideo = p => {
+        const v = vRef.current;
+        if (!v || !isFinite(v.duration) || v.duration <= 0) return;
+        const t = p * v.duration;
+        if (Math.abs(v.currentTime - t) > 0.02) v.currentTime = t;
+      };
       const apply = () => {
         const y = top();
         const p = clamp(y / scrollHeight, 0, 1); // 0 → 1 across the reveal
@@ -4233,15 +4260,25 @@ window.Ic = Ic;
         if (clipRef.current) {
           clipRef.current.style.clipPath = `polygon(${cs}% ${cs}%, ${ce}% ${cs}%, ${ce}% ${ce}%, ${cs}% ${ce}%)`;
         }
-        const size = (170 - 70 * clamp(y / (scrollHeight + 500), 0, 1)).toFixed(2) + "%"; // 170% → 100%
-        if (dRef.current) dRef.current.style.backgroundSize = size;
-        if (mRef.current) mRef.current.style.backgroundSize = size;
+        const sizePct = 170 - 70 * clamp(y / (scrollHeight + 500), 0, 1); // 170 → 100
+        if (dRef.current) dRef.current.style.backgroundSize = sizePct.toFixed(2) + "%";
+        if (mRef.current) mRef.current.style.backgroundSize = sizePct.toFixed(2) + "%";
+        if (vRef.current) vRef.current.style.transform = `scale(${(sizePct / 100).toFixed(4)})`;
+        seekVideo(p);
       };
       if (reduce) {
-        // No scroll-driven animation: show the image fully revealed, centred.
+        // No scroll-driven animation: show the image/video fully revealed, centred,
+        // with the lights already on (end of the clip) rather than scrubbing.
         if (clipRef.current) clipRef.current.style.clipPath = "none";
         if (dRef.current) dRef.current.style.backgroundSize = "100%";
         if (mRef.current) mRef.current.style.backgroundSize = "100%";
+        if (vRef.current) {
+          vRef.current.style.transform = "scale(1)";
+          const settle = () => seekVideo(1);
+          if (vRef.current.duration) settle();else vRef.current.addEventListener("loadedmetadata", settle, {
+            once: true
+          });
+        }
         return;
       }
       let ticking = false;
@@ -4254,6 +4291,11 @@ window.Ic = Ic;
         });
       };
       apply();
+      // Video duration isn't known until metadata loads — re-apply once it is,
+      // in case the visitor already scrolled before that happened.
+      if (vRef.current) vRef.current.addEventListener("loadedmetadata", apply, {
+        once: true
+      });
       scroller.addEventListener("scroll", onScroll, {
         passive: true
       });
@@ -4298,9 +4340,30 @@ window.Ic = Ic;
         position: "absolute",
         inset: 0,
         clipPath: initialClip,
-        willChange: "clip-path"
+        willChange: "clip-path",
+        overflow: "hidden"
       }
-    }, /*#__PURE__*/React.createElement("div", {
+    }, video ? /*#__PURE__*/React.createElement("video", {
+      ref: vRef,
+      src: video,
+      poster: videoPoster || desktopImage,
+      muted: true,
+      playsInline: true,
+      "webkit-playsinline": "true",
+      preload: "auto",
+      disablePictureInPicture: true,
+      style: {
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        objectPosition: "center",
+        transform: "scale(1.7)",
+        transformOrigin: "center center",
+        willChange: "transform"
+      }
+    }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       ref: mRef,
       className: "ssh-m",
       style: {
@@ -4314,7 +4377,7 @@ window.Ic = Ic;
         ...bg,
         backgroundImage: `url(${desktopImage})`
       }
-    }), /*#__PURE__*/React.createElement("div", {
+    })), /*#__PURE__*/React.createElement("div", {
       style: {
         position: "absolute",
         inset: 0,
@@ -4855,6 +4918,8 @@ function HomeScreen({
     }
   }, /*#__PURE__*/React.createElement(window.SmoothScrollHero, {
     scrollHeight: 700,
+    video: C.hero.video,
+    videoPoster: C.hero.desktopImage,
     desktopImage: C.hero.desktopImage,
     mobileImage: C.hero.mobileImage,
     initialClipPercentage: 22,
@@ -5698,7 +5763,7 @@ function CraftScreen({
     style: {
       padding: 'calc(var(--section-y) * 0.7) var(--gutter) 0'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("style", null, `.team-photo img{filter:grayscale(1);transition:filter 480ms ease}.team-photo:hover img{filter:grayscale(0)}`), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 'var(--maxw-content)',
       margin: '0 auto'
@@ -5755,8 +5820,9 @@ function CraftScreen({
       gap: 'clamp(24px,3vw,40px)'
     }
   }, team.map((m, i) => /*#__PURE__*/React.createElement("div", {
-    key: m.name
+    key: i
   }, /*#__PURE__*/React.createElement("div", {
+    className: "team-photo",
     style: {
       aspectRatio: '4 / 5',
       overflow: 'hidden',
@@ -5766,10 +5832,7 @@ function CraftScreen({
   }, /*#__PURE__*/React.createElement(ImageSlot, {
     id: `team-${i}`,
     src: m.photo,
-    alt: m.name,
-    imgStyle: {
-      filter: 'grayscale(1)'
-    }
+    alt: m.name
   })), /*#__PURE__*/React.createElement("h3", {
     style: {
       fontFamily: 'var(--font-display)',
@@ -6771,21 +6834,41 @@ Object.assign(window, {
 
 window.__overridesReady = false;
 (function () {
-  var IMAGE_OVERRIDES = {
+  // Snapshot taken at export time — used only as a fallback when this page is
+  // opened via file:// (browsers block fetch() of local sibling files there).
+  // When served by any real server (the local edit server below, or once
+  // deployed to Netlify/Vercel), the live JSON files are fetched instead, so
+  // edits made and saved through ?edit show up without re-exporting anything.
+  var EMBEDDED_IMAGE_OVERRIDES = {
   "home-feat-everson": {
     "src": "assets/uploads/edit-home-feat-everson.jpg",
     "x": 33.15789473684208,
     "y": 70.21052631578947
+  },
+  "team-4": {
+    "src": "assets/uploads/edit-team-4.jpg",
+    "x": 50,
+    "y": 50
+  },
+  "team-5": {
+    "src": "assets/uploads/edit-team-5.jpg",
+    "x": 58.08080602575228,
+    "y": 94.44444444444433
+  },
+  "team-7": {
+    "src": "assets/uploads/edit-team-7.jpg",
+    "x": 59.76431387442131,
+    "y": 100
   },
   "team-3": {
     "src": "assets/uploads/edit-team-3.jpg",
     "x": 50,
     "y": 50
   },
-  "home-quote": {
-    "src": "assets/uploads/edit-home-quote.jpg",
-    "x": 51.55325443786987,
-    "y": 65.00000000000003
+  "home-feat-van-der-hoff": {
+    "src": "assets/uploads/edit-home-feat-van-der-hoff.jpg",
+    "x": 94.47368421052632,
+    "y": 100
   },
   "home-statement": {
     "src": "assets/uploads/edit-home-statement.jpg",
@@ -6797,15 +6880,20 @@ window.__overridesReady = false;
     "x": 51.68350784866898,
     "y": 32.05387369791668
   },
-  "home-feat-van-der-hoff": {
-    "src": "assets/uploads/edit-home-feat-van-der-hoff.jpg",
-    "x": 94.47368421052632,
-    "y": 100
+  "home-quote": {
+    "src": "assets/uploads/edit-home-quote.jpg",
+    "x": 51.55325443786987,
+    "y": 65.00000000000003
   },
   "team-0": {
     "src": "assets/uploads/edit-team-0.jpg",
     "x": 50,
     "y": 50
+  },
+  "team-6": {
+    "src": "assets/uploads/edit-team-6.jpg",
+    "x": 90.40396231192133,
+    "y": 100
   },
   "home-feat-blakemore": {
     "src": "assets/uploads/edit-home-feat-blakemore.jpg",
@@ -6818,17 +6906,27 @@ window.__overridesReady = false;
     "y": 50
   }
 };
-  var TEXT_OVERRIDES = {};
-  Object.keys(IMAGE_OVERRIDES).forEach(function (id) {
-    var st = IMAGE_OVERRIDES[id]; if (!st) return;
-    try { localStorage.setItem('sybaris:img:' + id, JSON.stringify({ src: st.src || null, x: st.x, y: st.y })); } catch (e) {}
-  });
-  Object.keys(TEXT_OVERRIDES).forEach(function (id) {
-    var v = TEXT_OVERRIDES[id];
-    if (typeof v !== 'string') return;
-    try { localStorage.setItem('sybaris:txt:' + id, v); } catch (e) {}
-  });
-  window.__overridesReady = true;
+  var EMBEDDED_TEXT_OVERRIDES = {
+  "craft.team.members.4.role": "DRAUGHTSMAN"
+};
+
+  function seed(imageOverrides, textOverrides) {
+    Object.keys(imageOverrides || {}).forEach(function (id) {
+      var st = imageOverrides[id]; if (!st) return;
+      try { localStorage.setItem('sybaris:img:' + id, JSON.stringify({ src: st.src || null, x: st.x, y: st.y })); } catch (e) {}
+    });
+    Object.keys(textOverrides || {}).forEach(function (id) {
+      var v = textOverrides[id];
+      if (typeof v !== 'string') return;
+      try { localStorage.setItem('sybaris:txt:' + id, v); } catch (e) {}
+    });
+  }
+
+  var imgFetch = fetch('_image-overrides.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  var txtFetch = fetch('_content-overrides.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  Promise.all([imgFetch, txtFetch]).then(function (results) {
+    seed(results[0] || EMBEDDED_IMAGE_OVERRIDES, results[1] || EMBEDDED_TEXT_OVERRIDES);
+  }).finally(function () { window.__overridesReady = true; });
 
   function init() {
     if (!window.__sybImgEdit) { return setTimeout(init, 60); }
@@ -6863,7 +6961,7 @@ window.__overridesReady = false;
           if (d && d.ok) say('Saved ' + d.saved + ' image' + (d.saved === 1 ? '' : 's') + ' and ' + d.savedText + ' text change' + (d.savedText === 1 ? '' : 's') + ' ✓', '#5e6b4f');
           else say('Save failed: ' + ((d && d.error) || '?'), '#b3402f');
         })
-        .catch(function () { say('Save failed — there is no save server on this static deploy.', '#b3402f'); })
+        .catch(function () { say('Save failed — is the save server running?', '#b3402f'); })
         .finally(function () { btn.disabled = false; btn.textContent = label; });
     });
   }
