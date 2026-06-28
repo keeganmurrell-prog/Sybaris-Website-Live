@@ -4325,7 +4325,7 @@ window.Ic = Ic;
         position: "relative",
         width: "100%"
       }
-    }, /*#__PURE__*/React.createElement("style", null, `.ssh-d{display:block}.ssh-m{display:none}@media (max-width:767px){.ssh-d{display:none}.ssh-m{display:block}}`), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("style", null, `.ssh-d{display:block}.ssh-m{display:none}@media (max-width:767px){.ssh-d{display:none}.ssh-m{display:block}}.ssh-video{object-fit:cover;object-position:center;transform-origin:center center}@media (max-width:767px){.ssh-video{object-fit:contain;object-position:center top;transform-origin:center top}}`), /*#__PURE__*/React.createElement("div", {
       style: {
         position: "sticky",
         top: 0,
@@ -4345,22 +4345,21 @@ window.Ic = Ic;
       }
     }, video ? /*#__PURE__*/React.createElement("video", {
       ref: vRef,
+      className: "ssh-video",
       src: video,
       poster: videoPoster || desktopImage,
       muted: true,
       playsInline: true,
       "webkit-playsinline": "true",
       preload: "auto",
+      fetchpriority: "high",
       disablePictureInPicture: true,
       style: {
         position: "absolute",
         inset: 0,
         width: "100%",
         height: "100%",
-        objectFit: "cover",
-        objectPosition: "center",
         transform: "scale(1.7)",
-        transformOrigin: "center center",
         willChange: "transform"
       }
     }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
@@ -6855,16 +6854,6 @@ window.__overridesReady = false;
     "x": 58.08080602575228,
     "y": 94.44444444444433
   },
-  "team-7": {
-    "src": "assets/uploads/edit-team-7.jpg",
-    "x": 59.76431387442131,
-    "y": 100
-  },
-  "team-3": {
-    "src": "assets/uploads/edit-team-3.jpg",
-    "x": 50,
-    "y": 50
-  },
   "home-feat-van-der-hoff": {
     "src": "assets/uploads/edit-home-feat-van-der-hoff.jpg",
     "x": 94.47368421052632,
@@ -6875,15 +6864,10 @@ window.__overridesReady = false;
     "x": 59.81338575746019,
     "y": 50.450693645689064
   },
-  "team-1": {
-    "src": "assets/uploads/edit-team-1.jpg",
-    "x": 51.68350784866898,
-    "y": 32.05387369791668
-  },
-  "home-quote": {
-    "src": "assets/uploads/edit-home-quote.jpg",
-    "x": 51.55325443786987,
-    "y": 65.00000000000003
+  "gallery-vogel": {
+    "src": "assets/uploads/edit-gallery-vogel.jpg",
+    "x": 50,
+    "y": 50
   },
   "team-0": {
     "src": "assets/uploads/edit-team-0.jpg",
@@ -6900,13 +6884,44 @@ window.__overridesReady = false;
     "x": 50,
     "y": 50
   },
+  "team-7": {
+    "src": "assets/uploads/edit-team-7.jpg",
+    "x": 59.76431387442131,
+    "y": 100
+  },
+  "team-3": {
+    "src": "assets/uploads/edit-team-3.jpg",
+    "x": 50,
+    "y": 50
+  },
+  "gallery-metelerkamp": {
+    "src": "assets/uploads/edit-gallery-metelerkamp.jpg",
+    "x": 0.3276103251689189,
+    "y": 87.73955693975225
+  },
+  "home-quote": {
+    "src": "assets/uploads/edit-home-quote.jpg",
+    "x": 51.55325443786987,
+    "y": 65.00000000000003
+  },
+  "team-1": {
+    "src": "assets/uploads/edit-team-1.jpg",
+    "x": 51.68350784866898,
+    "y": 32.05387369791668
+  },
   "team-2": {
     "src": "assets/uploads/edit-team-2.jpg",
     "x": 50,
     "y": 50
+  },
+  "gallery-miller": {
+    "src": "assets/uploads/edit-gallery-miller.jpg",
+    "x": 19.86077385979728,
+    "y": 53.669130067567586
   }
 };
   var EMBEDDED_TEXT_OVERRIDES = {
+  "craft.team.body": "We are a team of designers, cabinetmakers and finishers — the same people you’ll work with from the first sketch to the final fitting.",
   "craft.team.members.4.role": "DRAUGHTSMAN"
 };
 

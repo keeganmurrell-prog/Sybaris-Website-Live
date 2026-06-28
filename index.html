@@ -6,6 +6,9 @@
   <title>Sybaris — Kitchens &amp; Interiors</title>
   <link rel="icon" href="favicon.ico">
   <link rel="stylesheet" href="styles.css">
+  <!-- Hero poster shows instantly while the (much larger) hero video downloads —
+       preload it at top priority so it isn't queued behind fonts/scripts. -->
+  <link rel="preload" as="image" href="assets/gallery/hero-lounge-poster.jpg" fetchpriority="high">
   <!-- Alternate display faces for the "Display type" tweak (Didone is the default). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap">
